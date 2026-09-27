@@ -1,0 +1,130 @@
+# Task descriptions. Curly braces doubled ({{ }}) inside JSON examples are
+# intentional - these strings go through Python's str.format(), so {{ }}
+# becomes a literal { } after formatting, while {single_braces} are the
+# actual variables being substituted in.
+
+intake_task:
+  description: >
+    Analyze the following problem description submitted by a user:
+
+    Problem statement: {problem_statement}
+    Industry/domain (if provided): {industry}
+    Objective (if provided): {objective}
+    Constraints (if provided): {constraints}
+    Available data (if provided): {available_data}
+    Desired outcome (if provided): {desired_outcome}
+
+    Produce a precise understanding of the problem. Do NOT propose any
+    solution at this stage. Identify what is known, what is assumed, and what
+    important information is missing.
+  expected_output: >
+    A JSON object only, with exactly this structure and no extra text or
+    markdown code fences:
+    {{
+      "problem_summary": "one clear paragraph restating the problem in your own words",
+      "objectives": ["objective 1", "..."],
+      "constraints": ["constraint 1", "..."],
+      "assumptions": ["assumption 1", "..."],
+      "missing_information": ["missing item 1", "..."]
+    }}
+
+routing_task:
+  description: >
+    Based on the problem understanding produced in the previous task, select
+    which specialists from this fixed pool are relevant. Choose only what is
+    needed - do not select specialists with no clear relevance to this problem.
+
+    Available specialist keys (choose only from this exact list, spelled
+    exactly as shown):
+    mechanical_specialist, manufacturing_specialist, electrical_specialist,
+    civil_specialist, chemical_specialist, materials_specialist,
+    biotech_specialist, software_specialist, data_ai_specialist,
+    quality_ops_specialist
+
+    Select between 2 and 4 specialists - never more, never fewer, unless the
+    problem is so narrow that only 1 clearly applies.
+  expected_output: >
+    A JSON object only, with exactly this structure and no extra text or
+    markdown code fences:
+    {{
+      "domains": ["short domain label 1", "..."],
+      "selected_specialists": ["specialist_key_1", "specialist_key_2"],
+      "routing_rationale": "one or two sentences on why these specialists were chosen"
+    }}
+
+research_task:
+  description: >
+    Using the confirmed problem understanding below, search the web for real,
+    relevant external evidence (documentation, standards, research papers,
+    manufacturer guidance, or other reputable technical sources) that could
+    help investigate this problem:
+
+    {confirmed_problem_context}
+
+    Run at least 2 distinct searches with different angles before concluding.
+    If the search tool is unavailable or returns nothing useful, say so
+    plainly in your output instead of inventing sources or citations.
+  expected_output: >
+    A JSON object only, with exactly this structure and no extra text or
+    markdown code fences:
+    {{
+      "evidence_available": true,
+      "evidence": [
+        {{"finding": "short factual finding", "source_title": "...", "source_url": "..."}}
+      ],
+      "notes": "any caveats about search availability or evidence quality"
+    }}
+
+specialist_task_template: >
+  You are analyzing this problem strictly as a {specialist_role}. Do not
+  comment on aspects outside your area of expertise - other specialists are
+  covering those.
+
+  Confirmed problem understanding:
+  {confirmed_problem_context}
+
+  {revision_note}
+
+  Relevant evidence gathered by the Research Agent (if any) is available to
+  you in your task context above. Identify possible root causes within your
+  domain, propose solutions, and flag risks. For every root cause you list,
+  explicitly say whether it is grounded in the evidence you were given
+  ("Evidence-based") or is your own professional judgment in the absence of
+  evidence ("Agent-inference").
+
+specialist_task_expected_output: >
+  A JSON object only, with exactly this structure and no extra text or
+  markdown code fences:
+  {{
+    "specialist": "{specialist_role}",
+    "possible_root_causes": ["cause 1", "..."],
+    "cause_basis": ["Evidence-based: ... OR Agent-inference: ...  (one line per cause, matching the order above)"],
+    "proposed_solutions": ["solution 1", "..."],
+    "risks_of_proposed_solutions": ["risk 1", "..."],
+    "confidence": "low, medium, or high, with a one-sentence reason"
+  }}
+
+critical_review_task:
+  description: >
+    You have access, via your task context, to the full problem understanding,
+    the evidence gathered, and every specialist's analysis for this problem:
+
+    {confirmed_problem_context}
+
+    {revision_note}
+
+    Critically challenge this work. Ask yourself: what could be wrong here,
+    which assumptions are shaky, is the evidence actually sufficient to
+    support the conclusions drawn, are there contradictions between different
+    specialists, what alternative explanations were missed, and could any
+    proposed solution create a new problem elsewhere. Do not simply restate
+    the specialists' conclusions approvingly - genuinely stress-test them.
+  expected_output: >
+    A JSON object only, with exactly this structure and no extra text or
+    markdown code fences:
+    {{
+      "critical_findings": ["finding 1", "..."],
+      "alternative_explanations": ["alternative 1", "..."],
+      "unresolved_uncertainty": ["uncertainty 1", "..."],
+      "overall_confidence_assessment": "one paragraph on whether the specialists' stated confidence levels seem justified given the evidence"
+    }}

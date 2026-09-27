@@ -1,0 +1,13 @@
+# Industria-AI dependencies
+# Versions verified as current stable releases at time of writing (Sep 2026).
+# Pinned to a minor-version range so Streamlit Cloud gets patch fixes but not
+# a surprise breaking major/minor upgrade.
+
+streamlit>=1.38,<2.0
+
+# The [litellm] extra is required because Groq is routed through CrewAI's
+# LiteLLM fallback path (Groq is not one of CrewAI's "native" providers).
+crewai[litellm]>=1.15,<1.16
+
+pyyaml>=6.0.1
+requests>=2.31.0
