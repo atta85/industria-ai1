@@ -24,6 +24,7 @@ def build_final_report(
         "relevant_domains": confirmed.get("domains", []),
         "agents_consulted": investigation.get("agents_involved", []),
         "evidence_collected": investigation.get("evidence", []),
+        "tool_usage": investigation.get("tool_usage", []),
         "evidence_available": investigation.get("evidence_available", False),
         "evidence_notes": investigation.get("evidence_notes", ""),
         "specialist_findings": investigation.get("specialist_results", []),
@@ -85,6 +86,13 @@ def report_to_markdown(report: dict) -> str:
         lines.append("_No external evidence was available. All findings below are agent inference._")
     if report.get("evidence_notes"):
         lines.append(f"\n*Research notes: {report['evidence_notes']}*")
+
+    lines.append("\n## Tools Used by Agents")
+    if report.get("tool_usage"):
+        for t in report["tool_usage"]:
+            lines.append(f"- `{t.get('time', '')}` **{t.get('agent', '')}** used `{t.get('tool', '')}` on \"{t.get('input', '')}\" - {t.get('status', '')} ({t.get('detail', '')})")
+    else:
+        lines.append("_No tools were called during this analysis._")
 
     lines.append("\n## 6-9. Specialist Findings (Root Causes, Alternatives, Solutions, Risks)")
     for s in report["specialist_findings"]:
