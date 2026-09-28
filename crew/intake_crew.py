@@ -3,7 +3,7 @@ import os
 import yaml
 from crewai import Agent, Crew, Process, Task
 
-from utils.json_parser import parse_json_output
+from utils.json_parser import as_str_list, parse_json_output
 
 _CONFIG_DIR = os.path.join(os.path.dirname(__file__), "config")
 
@@ -79,18 +79,18 @@ def run_intake_crew(
     # hallucinated a key that doesn't exist, drop it rather than crash later.
     from crew.specialist_pool import SPECIALIST_POOL
 
-    raw_selected = routing_data.get("selected_specialists", []) or []
+    raw_selected = as_str_list(routing_data.get("selected_specialists"))
     valid_selected = [k for k in raw_selected if k in SPECIALIST_POOL]
 
     merged = {
-        "problem_summary": intake_data.get("problem_summary", ""),
-        "objectives": intake_data.get("objectives", []),
-        "constraints": intake_data.get("constraints", []),
-        "assumptions": intake_data.get("assumptions", []),
-        "missing_information": intake_data.get("missing_information", []),
-        "domains": routing_data.get("domains", []),
+        "problem_summary": str(intake_data.get("problem_summary", "")),
+        "objectives": as_str_list(intake_data.get("objectives")),
+        "constraints": as_str_list(intake_data.get("constraints")),
+        "assumptions": as_str_list(intake_data.get("assumptions")),
+        "missing_information": as_str_list(intake_data.get("missing_information")),
+        "domains": as_str_list(routing_data.get("domains")),
         "selected_specialists": valid_selected,
-        "routing_rationale": routing_data.get("routing_rationale", ""),
+        "routing_rationale": str(routing_data.get("routing_rationale", "")),
         "intake_parse_error": intake_data.get("parse_error", False),
         "routing_parse_error": routing_data.get("parse_error", False),
     }
