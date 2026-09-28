@@ -357,6 +357,7 @@ elif st.session_state.stage == "checkpoint2":
     st.markdown("#### \U0001F50E Evidence Gathered")
     if inv.get("evidence_available") and inv.get("evidence"):
         for e in inv["evidence"]:
+            e = e if isinstance(e, dict) else {"finding": str(e)}
             url = e.get("source_url", "")
             title = e.get("source_title", "Source")
             finding = e.get("finding", "")
