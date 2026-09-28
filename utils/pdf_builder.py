@@ -240,6 +240,28 @@ def build_pdf(report: dict) -> bytes:
         story.append(Spacer(1, 3))
         story.append(Paragraph(f"<i>Research notes: {_rich(report['evidence_notes'])}</i>", st["small"]))
 
+    # ---- Tools used ---------------------------------------------------
+    section("Tools Used by Agents")
+    usage = _as_list(report.get("tool_usage"))
+    if usage:
+        rows = [[Paragraph(h, st["cellhead"]) for h in ("Time", "Agent", "Tool", "Input", "Result")]]
+        for t in usage:
+            t = t if isinstance(t, dict) else {}
+            rows.append([Paragraph(_rich(t.get(k, "")), st["cell"]) for k in ("time", "agent", "tool", "input")]
+                        + [Paragraph(_rich(f"{t.get('status', '')}: {t.get('detail', '')}"), st["cell"])])
+        tt = Table(rows, colWidths=[CONTENT_W * w for w in (0.10, 0.22, 0.15, 0.31, 0.22)], repeatRows=1)
+        tt.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), NAVY),
+            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, INDIGO_SOFT]),
+            ("GRID", (0, 0), (-1, -1), 0.4, LIGHT),
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ("LEFTPADDING", (0, 0), (-1, -1), 5), ("RIGHTPADDING", (0, 0), (-1, -1), 5),
+            ("TOPPADDING", (0, 0), (-1, -1), 3), ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+        ]))
+        story.append(tt)
+    else:
+        story.append(Paragraph("<i>No tools were called during this analysis.</i>", st["small"]))
+
     # ---- 5. Specialist analyses --------------------------------------
     section("Specialist Analyses")
     specialists = _as_list(report.get("specialist_findings"))
