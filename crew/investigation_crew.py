@@ -5,7 +5,7 @@ from crewai import Agent, Crew, Process, Task
 
 from crew.specialist_pool import SPECIALIST_POOL
 from crew.tools.custom_tools import SafeCalculatorTool, WebSearchTool
-from utils.json_parser import parse_json_output
+from utils.json_parser import as_evidence_list, as_str_list, parse_json_output
 
 _CONFIG_DIR = os.path.join(os.path.dirname(__file__), "config")
 
@@ -119,6 +119,11 @@ def run_investigation_crew(
     specialist_results = []
     for key, task in specialist_tasks.items():
         result = parse_json_output(task.output.raw if task.output else None)
+        if not result.get("parse_error"):
+            for field in ("possible_root_causes", "cause_basis", "proposed_solutions", "risks_of_proposed_solutions"):
+                result[field] = as_str_list(result.get(field))
+            result["confidence"] = str(result.get("confidence", "not stated"))
+            result["specialist"] = str(result.get("specialist", agents_config[key]["role"]))
         result["specialist_key"] = key
         result["specialist_icon"] = SPECIALIST_POOL.get(key, {}).get("icon", "")
         specialist_results.append(result)
@@ -127,14 +132,21 @@ def run_investigation_crew(
         critical_review_task.output.raw if critical_review_task.output else None
     )
 
+    if not critical_review_data.get("parse_error"):
+        for field in ("critical_findings", "alternative_explanations", "unresolved_uncertainty"):
+            critical_review_data[field] = as_str_list(critical_review_data.get(field))
+        if "overall_confidence_assessment" in critical_review_data:
+            critical_review_data["overall_confidence_assessment"] = str(critical_review_data["overall_confidence_assessment"])
+
+    evidence_list = as_evidence_list(evidence_data.get("evidence"))
     agents_involved = [agents_config["research_agent"]["role"]]
     agents_involved += [agents_config[k]["role"] for k in specialist_tasks.keys()]
     agents_involved.append(agents_config["critical_reviewer"]["role"])
 
     return {
-        "evidence_available": evidence_data.get("evidence_available", False),
-        "evidence": evidence_data.get("evidence", []),
-        "evidence_notes": evidence_data.get("notes", ""),
+        "evidence_available": bool(evidence_data.get("evidence_available", False)) and bool(evidence_list),
+        "evidence": evidence_list,
+        "evidence_notes": str(evidence_data.get("notes", "")),
         "specialist_results": specialist_results,
         "critical_review": critical_review_data,
         "agents_involved": agents_involved,
