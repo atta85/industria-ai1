@@ -43,11 +43,13 @@ def run_investigation_crew(
         else ""
     )
 
+    tool_log = []  # per-run record of every tool call, shown in the UI/report
+
     # --- Research Agent ---
     research_agent = Agent(
         config=agents_config["research_agent"],
         llm=llm_light,
-        tools=[WebSearchTool()],
+        tools=[WebSearchTool(usage_log=tool_log)],
         verbose=True,
         allow_delegation=False,
     )
@@ -72,7 +74,7 @@ def run_investigation_crew(
         agent = Agent(
             config=agents_config[key],
             llm=llm_heavy,
-            tools=[SafeCalculatorTool()],
+            tools=[SafeCalculatorTool(agent_label=role_label, usage_log=tool_log)],
             verbose=True,
             allow_delegation=False,
         )
@@ -136,4 +138,5 @@ def run_investigation_crew(
         "specialist_results": specialist_results,
         "critical_review": critical_review_data,
         "agents_involved": agents_involved,
+        "tool_usage": tool_log,
     }
