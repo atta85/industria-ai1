@@ -149,6 +149,20 @@ def render_audit_trail():
             st.markdown(f"`{entry['timestamp']}` **{entry['event']}** {entry['detail']}")
 
 
+def render_tool_usage(inv):
+    usage = inv.get("tool_usage", []) or []
+    with st.expander(f"\U0001F6E0 Tools Used During Analysis ({len(usage)} call{'s' if len(usage) != 1 else ''})", expanded=True):
+        st.caption("Research Agent -> evidence_search (web)  |  Specialists -> safe_calculator")
+        if not usage:
+            st.info("No tools were called by the agents in this run.")
+        else:
+            st.dataframe(
+                [{"Time": t["time"], "Agent": t["agent"], "Tool": t["tool"], "Input": t["input"],
+                  "Result": f"{t['status']}: {t['detail']}"} for t in usage],
+                use_container_width=True, hide_index=True,
+            )
+
+
 # ---------------------------------------------------------------------------
 # STAGE: input
 # ---------------------------------------------------------------------------
@@ -301,6 +315,7 @@ elif st.session_state.stage == "checkpoint1":
                 )
                 st.session_state.investigation_result = investigation
                 log_audit("Investigation complete", f"— {len(selected)} specialist(s) + research + critical review")
+                log_audit("Tools used", f"— {len(investigation.get('tool_usage', []))} call(s)")
                 st.session_state.stage = "checkpoint2"
                 st.rerun()
             except Exception as exc:  # noqa: BLE001
@@ -335,6 +350,8 @@ elif st.session_state.stage == "checkpoint2":
         unsafe_allow_html=True,
     )
     st.markdown("</div>", unsafe_allow_html=True)
+
+    render_tool_usage(inv)
 
     st.markdown("<div class='industria-card'>", unsafe_allow_html=True)
     st.markdown("#### \U0001F50E Evidence Gathered")
@@ -443,7 +460,7 @@ elif st.session_state.stage == "checkpoint2":
                                 )
                                 st.session_state.investigation_result = investigation
                                 st.session_state.revision_used = True
-                                log_audit("Revised investigation complete")
+                                log_audit("Revised investigation complete", f"— {len(investigation.get('tool_usage', []))} tool call(s)")
                                 st.rerun()
                             except Exception as exc:  # noqa: BLE001
                                 st.error("Something went wrong during the revision. Please try Accept or Reject.")
