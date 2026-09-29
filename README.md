@@ -76,6 +76,7 @@ level instead.
 | crewai | `>=1.15,<1.16` (with `[litellm]` extra) | Groq is routed through CrewAI's LiteLLM fallback, not a "native" provider |
 | Streamlit | `>=1.38,<2.0` | UI and orchestration |
 | LLM provider | Groq | `openai/gpt-oss-120b` for specialists/reviewer, `openai/gpt-oss-20b` for lightweight routing |
+| Academic search | OpenAlex | Optional — peer-reviewed papers with DOIs for numbered references |
 | Web search | Serper.dev | Optional — app runs in degraded (no-evidence) mode without it |
 
 ## Environment Variables / Secrets
@@ -84,6 +85,7 @@ Two secrets, configured via Streamlit Secrets (never hard-coded, never
 committed to Git):
 
 - `GROQ_API_KEY` — **required**. App will not start without it.
+- `OPENALEX_API_KEY` — **optional**. Enables academic references: the Research Agent searches peer-reviewed literature via OpenAlex, and the report lists numbered references built from real metadata (authors, year, title, venue, DOI).
 - `SERPER_API_KEY` — **optional**. Without it, the Research Agent runs in
   degraded mode: no live web search, and every affected finding is labeled
   "Assumption" rather than "Evidence" in the final report.
@@ -99,6 +101,7 @@ mkdir -p .streamlit
 cat > .streamlit/secrets.toml << 'EOF'
 GROQ_API_KEY = "your-groq-key"
 SERPER_API_KEY = "your-serper-key"
+OPENALEX_API_KEY = "your-openalex-key"
 EOF
 
 streamlit run app.py

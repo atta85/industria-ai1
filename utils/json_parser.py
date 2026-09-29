@@ -47,6 +47,8 @@ def as_evidence_list(value) -> list:
                 "finding": str(item.get("finding", item.get("summary", ""))),
                 "source_title": str(item.get("source_title", item.get("title", ""))),
                 "source_url": str(item.get("source_url", item.get("url", ""))),
+                "source_type": str(item.get("source_type", "")),
+                "reference_id": str(item.get("reference_id", "")),
             })
         elif str(item).strip():
             out.append({"finding": str(item).strip(), "source_title": "", "source_url": ""})

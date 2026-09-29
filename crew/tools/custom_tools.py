@@ -154,3 +154,113 @@ class SafeCalculatorTool(BaseTool):
         except Exception as exc:  # noqa: BLE001 - must never raise
             _record(self.usage_log, self.agent_label, self.name, expression, "error", "Invalid expression")
             return f"Error: could not evaluate expression ({exc}). Report this calculation as unavailable rather than guessing a number."
+
+
+# ---------------------------------------------------------------------------
+# Academic literature search (OpenAlex)
+# ---------------------------------------------------------------------------
+def _abstract_snippet(inverted_index, max_words=45) -> str:
+    if not isinstance(inverted_index, dict):
+        return ""
+    positions = []
+    for word, idxs in inverted_index.items():
+        for i in idxs or []:
+            positions.append((i, word))
+    positions.sort()
+    words = [w for _, w in positions[:max_words]]
+    text = " ".join(words)
+    return text + (" ..." if len(positions) > max_words else "")
+
+
+def _openalex_meta(work: dict):
+    """Extract clean citation metadata from one OpenAlex work record."""
+    if not isinstance(work, dict):
+        return None
+    wid = str(work.get("id") or "").rsplit("/", 1)[-1]
+    title = work.get("display_name") or work.get("title")
+    if not wid.startswith("W") or not title:
+        return None
+    authors = []
+    for a in work.get("authorships") or []:
+        name = ((a or {}).get("author") or {}).get("display_name")
+        if name:
+            authors.append(name)
+    source = ((work.get("primary_location") or {}).get("source") or {})
+    doi = work.get("doi") or ""
+    return {
+        "id": wid,
+        "title": str(title),
+        "authors": authors,
+        "year": work.get("publication_year") or "n.d.",
+        "venue": source.get("display_name") or "",
+        "doi": doi,
+        "url": doi if doi else f"https://openalex.org/{wid}",
+        "cited_by": work.get("cited_by_count") or 0,
+        "abstract": _abstract_snippet(work.get("abstract_inverted_index")),
+    }
+
+
+class ScholarlySearchTool(BaseTool):
+    """
+    Searches peer-reviewed literature via the OpenAlex API. Every paper it
+    returns is stored in a per-run registry keyed by its OpenAlex ID, so the
+    final reference list is built from real metadata - never from text the
+    model wrote. Any ID the model cites that is not in the registry is dropped.
+    """
+
+    name: str = "scholarly_search"
+    args_schema: Type[BaseModel] = SearchInput
+    description: str = (
+        "Search peer-reviewed academic and research literature. Input: a short, "
+        "specific query string. Returns up to 5 papers, each labelled with a "
+        "reference ID in square brackets like [W2741809807]. Cite academic "
+        "papers ONLY with these exact IDs; never invent one."
+    )
+    agent_label: str = "Research & Evidence Agent"
+    usage_log: Any = None
+    registry: Any = None
+
+    def _run(self, query: str) -> str:
+        try:
+            api_key = st.secrets.get("OPENALEX_API_KEY")
+        except Exception:  # noqa: BLE001
+            api_key = None
+        if not api_key:
+            _record(self.usage_log, self.agent_label, self.name, query, "unavailable", "No OPENALEX_API_KEY configured")
+            return ("ACADEMIC SEARCH UNAVAILABLE: no OPENALEX_API_KEY is configured. "
+                    "Do not cite any academic papers or invent reference IDs.")
+        try:
+            response = requests.get(
+                "https://api.openalex.org/works",
+                params={"search": query, "per_page": 5, "api_key": api_key},
+                timeout=20,
+            )
+            response.raise_for_status()
+            data = response.json()
+        except requests.exceptions.Timeout:
+            _record(self.usage_log, self.agent_label, self.name, query, "error", "Request timed out")
+            return "ACADEMIC SEARCH UNAVAILABLE: request timed out. Do not invent academic citations."
+        except requests.exceptions.RequestException:
+            _record(self.usage_log, self.agent_label, self.name, query, "error", "Request failed")
+            return "ACADEMIC SEARCH UNAVAILABLE: request failed. Do not invent academic citations."
+        except ValueError:
+            _record(self.usage_log, self.agent_label, self.name, query, "error", "Unreadable response")
+            return "ACADEMIC SEARCH UNAVAILABLE: unreadable response. Do not invent academic citations."
+
+        papers = [m for m in (_openalex_meta(w) for w in (data.get("results") or [])) if m]
+        if not papers:
+            _record(self.usage_log, self.agent_label, self.name, query, "no results", "0 papers")
+            return f'ACADEMIC SEARCH returned no papers for "{query}". Do not invent academic citations.'
+
+        lines = [f'Academic papers for "{query}":']
+        for p in papers:
+            if isinstance(self.registry, dict):
+                self.registry[p["id"]] = p
+            authors = ", ".join(p["authors"][:3]) + (" et al." if len(p["authors"]) > 3 else "")
+            lines.append(
+                f"[{p['id']}] {p['title']} ({p['year']}). {(authors or 'Unknown authors').rstrip('.')}. "
+                f"{p['venue'] or 'Unknown venue'}. Cited by {p['cited_by']}.\n"
+                f"   Abstract: {p['abstract'] or '(not available)'}"
+            )
+        _record(self.usage_log, self.agent_label, self.name, query, "ok", f"{len(papers)} papers")
+        return "\n".join(lines)

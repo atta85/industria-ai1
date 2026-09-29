@@ -61,6 +61,7 @@ init_state()
 # ---------------------------------------------------------------------------
 GROQ_API_KEY = st.secrets.get("GROQ_API_KEY")
 SERPER_API_KEY = st.secrets.get("SERPER_API_KEY")
+OPENALEX_API_KEY = st.secrets.get("OPENALEX_API_KEY")
 
 if not GROQ_API_KEY:
     st.error(
@@ -118,6 +119,10 @@ with st.sidebar:
         st.caption("\u26A0\uFE0F No SERPER_API_KEY set — research will run in degraded (no-evidence) mode.")
     else:
         st.caption("\u2705 Web search evidence enabled.")
+    if OPENALEX_API_KEY:
+        st.caption("\u2705 Academic references enabled (OpenAlex).")
+    else:
+        st.caption("\u26A0\uFE0F No OPENALEX_API_KEY set — academic references disabled.")
 
     st.markdown("---")
     if st.button("\U0001F504 Start New Problem", use_container_width=True):
@@ -152,7 +157,7 @@ def render_audit_trail():
 def render_tool_usage(inv):
     usage = inv.get("tool_usage", []) or []
     with st.expander(f"\U0001F6E0 Tools Used During Analysis ({len(usage)} call{'s' if len(usage) != 1 else ''})", expanded=True):
-        st.caption("Research Agent -> evidence_search (web)  |  Specialists -> safe_calculator")
+        st.caption("Research Agent -> evidence_search (web), scholarly_search (academic)  |  Specialists -> safe_calculator")
         if not usage:
             st.info("No tools were called by the agents in this run.")
         else:
@@ -361,10 +366,10 @@ elif st.session_state.stage == "checkpoint2":
             url = e.get("source_url", "")
             title = e.get("source_title", "Source")
             finding = e.get("finding", "")
-            if url:
-                st.markdown(f"- **{finding}** — [{title}]({url})")
-            else:
-                st.markdown(f"- **{finding}** — {title}")
+            cite = f" [{e['citation']}]" if e.get("citation") else ""
+            kind = {"academic": "\U0001F393 Academic", "web": "\U0001F310 Web"}.get(e.get("source_type"), "\u26A0\uFE0F Unverified")
+            src = f"[{title}]({url})" if url else title
+            st.markdown(f"- **{finding}**{cite} — {kind}: {src}")
     else:
         st.markdown(
             "<div class='industria-warning'>\u26A0\uFE0F No external evidence was available for this "
@@ -374,6 +379,22 @@ elif st.session_state.stage == "checkpoint2":
         )
     if inv.get("evidence_notes"):
         st.caption(inv["evidence_notes"])
+    st.markdown("</div>", unsafe_allow_html=True)
+
+    st.markdown("<div class='industria-card'>", unsafe_allow_html=True)
+    st.markdown("#### \U0001F4DA Academic References")
+    refs = inv.get("references", []) or []
+    if refs:
+        st.caption("Numbered references cited above. Every entry comes from OpenAlex metadata, not from AI-written text.")
+        for r in refs:
+            st.markdown(f"**[{r['number']}]** {r['text']} [{r['url']}]({r['url']})")
+    else:
+        st.caption("No academic papers were cited in this analysis.")
+    related = inv.get("related_literature", []) or []
+    if related:
+        with st.expander(f"Related literature retrieved but not cited ({len(related)})"):
+            for r in related:
+                st.markdown(f"- {r['text']} [{r['url']}]({r['url']})")
     st.markdown("</div>", unsafe_allow_html=True)
 
     st.markdown("#### \U0001F9E9 Specialist Findings")

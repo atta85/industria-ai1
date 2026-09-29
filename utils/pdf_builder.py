@@ -207,7 +207,7 @@ def build_pdf(report: dict) -> bytes:
     section("Evidence Collected")
     evidence = _as_list(report.get("evidence_collected"))
     if report.get("evidence_available") and evidence:
-        rows = [[Paragraph("Finding", st["cellhead"]), Paragraph("Source", st["cellhead"])]]
+        rows = [[Paragraph("Finding", st["cellhead"]), Paragraph("Type", st["cellhead"]), Paragraph("Source", st["cellhead"])]]
         for e in evidence:
             e = e if isinstance(e, dict) else {"finding": e}
             title = _rich(e.get("source_title") or "Source")
@@ -217,8 +217,11 @@ def build_pdf(report: dict) -> bytes:
                 source = f'<link href="{href}" color="#4f46e5"><u>{title}</u></link>'
             else:
                 source = title
-            rows.append([Paragraph(_rich(e.get("finding", "")), st["cell"]), Paragraph(source, st["cell"])])
-        table = Table(rows, colWidths=[CONTENT_W * 0.6, CONTENT_W * 0.4], repeatRows=1)
+            cite = f" <b>[{e['citation']}]</b>" if e.get("citation") else ""
+            kind = {"academic": "Academic", "web": "Web"}.get(e.get("source_type"), "Unverified")
+            rows.append([Paragraph(_rich(e.get("finding", "")) + cite, st["cell"]), Paragraph(kind, st["cell"]),
+                         Paragraph(source, st["cell"])])
+        table = Table(rows, colWidths=[CONTENT_W * 0.52, CONTENT_W * 0.12, CONTENT_W * 0.36], repeatRows=1)
         table.setStyle(TableStyle([
             ("BACKGROUND", (0, 0), (-1, 0), NAVY),
             ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, INDIGO_SOFT]),
@@ -334,7 +337,29 @@ def build_pdf(report: dict) -> bytes:
             story.append(Paragraph("Overall confidence assessment", st["h2"]))
             story.append(Paragraph(_rich(cr["overall_confidence_assessment"]), st["body"]))
 
-    # ---- 8. Human verification ---------------------------------------
+    # ---- References ---------------------------------------------------
+    section("References")
+    refs = _as_list(report.get("references"))
+    if refs:
+        for r in refs:
+            url = _clean(r.get("url", ""))
+            link = ""
+            if url.startswith(("http://", "https://")):
+                href = escape(url, {'"': "&quot;"})
+                link = f' <link href="{href}" color="#4f46e5"><u>{escape(url)}</u></link>'
+            story.append(Paragraph(_rich(r.get("text", "")) + link, st["bullet"], bulletText=f"[{r.get('number')}]"))
+    else:
+        story.append(Paragraph("<i>No academic papers were cited in this analysis.</i>", st["small"]))
+    related = _as_list(report.get("related_literature"))
+    if related:
+        story.append(Paragraph("Related literature (retrieved, not cited)", st["h2"]))
+        for r in related:
+            url = _clean(r.get("url", ""))
+            href = escape(url, {'"': "&quot;"})
+            link = f' <link href="{href}" color="#4f46e5"><u>{escape(url)}</u></link>' if url.startswith("http") else ""
+            story.append(Paragraph(_rich(r.get("text", "")) + link, st["bullet"], bulletText="\u2022"))
+
+    # ---- Human verification -------------------------------------------
     section("Human Feedback & Verification")
     history = _as_list(report.get("human_feedback_history"))
     if history:

@@ -25,6 +25,8 @@ def build_final_report(
         "agents_consulted": investigation.get("agents_involved", []),
         "evidence_collected": investigation.get("evidence", []),
         "tool_usage": investigation.get("tool_usage", []),
+        "references": investigation.get("references", []),
+        "related_literature": investigation.get("related_literature", []),
         "evidence_available": investigation.get("evidence_available", False),
         "evidence_notes": investigation.get("evidence_notes", ""),
         "specialist_findings": investigation.get("specialist_results", []),
@@ -81,7 +83,10 @@ def report_to_markdown(report: dict) -> str:
             title = e.get("source_title", "Untitled source")
             url = e.get("source_url", "")
             finding = e.get("finding", "")
-            lines.append(f"- **{finding}** — [{title}]({url})" if url else f"- **{finding}** — {title}")
+            cite = f" [{e['citation']}]" if e.get("citation") else ""
+            kind = {"academic": "Academic", "web": "Web"}.get(e.get("source_type"), "Unverified")
+            src = f"[{title}]({url})" if url else title
+            lines.append(f"- **{finding}**{cite} — _{kind}:_ {src}")
     else:
         lines.append("_No external evidence was available. All findings below are agent inference._")
     if report.get("evidence_notes"):
@@ -125,6 +130,17 @@ def report_to_markdown(report: dict) -> str:
         lines.append(f"- {u}")
     if cr.get("overall_confidence_assessment"):
         lines.append(f"\n**Overall confidence assessment:** {cr['overall_confidence_assessment']}")
+
+    lines.append("\n## References")
+    if report.get("references"):
+        for r in report["references"]:
+            lines.append(f"{r['number']}. {r['text']} [{r['url']}]({r['url']})")
+    else:
+        lines.append("_No academic papers were cited in this analysis._")
+    if report.get("related_literature"):
+        lines.append("\n**Related literature (retrieved, not cited):**")
+        for r in report["related_literature"]:
+            lines.append(f"- {r['text']} [{r['url']}]({r['url']})")
 
     lines.append("\n## 11. Human Feedback History")
     if report["human_feedback_history"]:

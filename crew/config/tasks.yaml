@@ -54,23 +54,29 @@ routing_task:
 
 research_task:
   description: >
-    Using the confirmed problem understanding below, search the web for real,
-    relevant external evidence (documentation, standards, research papers,
-    manufacturer guidance, or other reputable technical sources) that could
-    help investigate this problem:
+    Using the confirmed problem understanding below, gather real external
+    evidence that could help investigate this problem:
 
     {confirmed_problem_context}
 
-    Run at least 2 distinct searches with different angles before concluding.
-    If the search tool is unavailable or returns nothing useful, say so
-    plainly in your output instead of inventing sources or citations.
+    Use BOTH of your tools. Use evidence_search at least twice, with different
+    angles, for industry sources such as standards, manufacturer guidance and
+    technical documentation. Use scholarly_search at least twice for
+    peer-reviewed academic research on the likely mechanisms or causes.
+
+    For every academic paper you use, set "source_type" to "academic" and set
+    "reference_id" to the exact ID shown in square brackets by scholarly_search
+    (for example W2741809807). Only use IDs that the tool actually returned;
+    never invent or modify one. For web sources, set "source_type" to "web"
+    and leave "reference_id" empty. If a tool is unavailable or returns
+    nothing useful, say so in notes instead of inventing sources.
   expected_output: >
     A JSON object only, with exactly this structure and no extra text or
     markdown code fences:
     {{
       "evidence_available": true,
       "evidence": [
-        {{"finding": "short factual finding", "source_title": "...", "source_url": "..."}}
+        {{"finding": "short factual finding", "source_type": "academic or web", "source_title": "...", "source_url": "...", "reference_id": "W... for academic papers, empty for web"}}
       ],
       "notes": "any caveats about search availability or evidence quality"
     }}
@@ -90,7 +96,9 @@ specialist_task_template: >
   domain, propose solutions, and flag risks. For every root cause you list,
   explicitly say whether it is grounded in the evidence you were given
   ("Evidence-based") or is your own professional judgment in the absence of
-  evidence ("Agent-inference").
+  evidence ("Agent-inference"). When an academic paper in the evidence
+  supports a point, cite its reference ID in square brackets, for example
+  [W2741809807]. Only cite IDs that appear in the evidence; never invent one.
 
 specialist_task_expected_output: >
   A JSON object only, with exactly this structure and no extra text or

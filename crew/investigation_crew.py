@@ -4,7 +4,8 @@ import yaml
 from crewai import Agent, Crew, Process, Task
 
 from crew.specialist_pool import SPECIALIST_POOL
-from crew.tools.custom_tools import SafeCalculatorTool, WebSearchTool
+from crew.tools.custom_tools import SafeCalculatorTool, ScholarlySearchTool, WebSearchTool
+from utils.citations import apply_citations
 from utils.json_parser import as_evidence_list, as_str_list, parse_json_output
 
 _CONFIG_DIR = os.path.join(os.path.dirname(__file__), "config")
@@ -44,12 +45,13 @@ def run_investigation_crew(
     )
 
     tool_log = []  # per-run record of every tool call, shown in the UI/report
+    reference_registry = {}  # papers actually returned by scholarly_search this run
 
     # --- Research Agent ---
     research_agent = Agent(
         config=agents_config["research_agent"],
         llm=llm_light,
-        tools=[WebSearchTool(usage_log=tool_log)],
+        tools=[WebSearchTool(usage_log=tool_log), ScholarlySearchTool(usage_log=tool_log, registry=reference_registry)],
         verbose=True,
         allow_delegation=False,
     )
@@ -143,8 +145,8 @@ def run_investigation_crew(
     agents_involved += [agents_config[k]["role"] for k in specialist_tasks.keys()]
     agents_involved.append(agents_config["critical_reviewer"]["role"])
 
-    return {
-        "evidence_available": bool(evidence_data.get("evidence_available", False)) and bool(evidence_list),
+    result = {
+        "evidence_available": bool(evidence_list),
         "evidence": evidence_list,
         "evidence_notes": str(evidence_data.get("notes", "")),
         "specialist_results": specialist_results,
@@ -152,3 +154,4 @@ def run_investigation_crew(
         "agents_involved": agents_involved,
         "tool_usage": tool_log,
     }
+    return apply_citations(result, reference_registry)
